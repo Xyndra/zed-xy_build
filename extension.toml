@@ -1,0 +1,15 @@
+id = "xy_build"
+name = "XY Build"
+version = "0.1.0"
+schema_version = 1
+authors = ["Xyndra <xyndra@example.com>"]
+description = "XY Build language support for Zed"
+repository = "https://github.com/xyndra/zed-xy_build"
+
+[grammars.xy_build]
+repository = "https://github.com/Xyndra/tree-sitter-xy_build"
+rev = "540e42f79fb4b730781c781cf90d0181a3a3b582"
+
+[language_servers.xy-build-lsp]
+name = "XY Build LSP"
+languages = ["XY Build"]

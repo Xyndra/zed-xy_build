@@ -1,0 +1,5 @@
+name = "XY Build"
+grammar = "xy_build"
+path_suffixes = ["xybuild", "xyb"]
+line_comments = ["// "]
+block_comment = ["/* ", " */"]
