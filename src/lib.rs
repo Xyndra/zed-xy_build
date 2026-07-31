@@ -1,6 +1,5 @@
 use std::str;
 
-use zed_extension_api::process::Command as ProcessCommand;
 use zed_extension_api as zed;
 
 const REPO: &str = "xyndra/xy_build";
@@ -20,77 +19,26 @@ impl zed::Extension for XyBuildExtension {
         let (os, arch) = zed::current_platform();
         let ext = if os == zed::Os::Windows { ".exe" } else { "" };
 
-        // determine where to find a local binary
-        let env = worktree.shell_env();
-        let local_path = env
-            .iter()
-            .find(|(k, _)| k == "XY_BUILD_LSP_PATH")
-            .map(|(_, v)| v.clone())
-            .or_else(|| worktree.which("xy-build-lsp"));
+        let local_binary = format!("./xy-build-lsp{}", ext);
+        let has_local = std::fs::metadata(&local_binary).is_ok();
 
-        if let Some(path) = local_path {
-            // get local version via --version
-            let local_ver = ProcessCommand::new(&path)
-                .arg("--version")
-                .output()
-                .ok()
-                .and_then(|out| {
-                    if out.status != Some(0) {
-                        return None;
-                    }
-                    let s = str::from_utf8(&out.stdout).ok()?;
-                    Some(s.trim().to_string())
-                });
-
-            // get latest release version
-            let release_ver = zed::latest_github_release(
-                REPO,
-                zed::GithubReleaseOptions {
-                    require_assets: true,
-                    pre_release: false,
-                },
-            )
-            .ok()
-            .map(|r| r.version.trim_start_matches('v').to_string());
-
-            match (local_ver, release_ver) {
-                (Some(ref lv), Some(ref rv)) if lv == rv => {
-                    return Ok(zed::Command {
-                        command: path,
-                        args: vec![],
-                        env: vec![],
-                    });
-                }
-                (_, Some(rv)) => match download_lsp(language_server_id, os, arch, ext, &rv) {
-                    Ok(cmd) => return Ok(cmd),
-                    Err(_) => {
-                        zed::set_language_server_installation_status(
-                            language_server_id,
-                            &zed::LanguageServerInstallationStatus::Failed(
-                                format!(
-                                    "local version doesn't match latest release v{rv}, \
-                                     and download failed. falling back to local binary."
-                                ),
-                            ),
-                        );
-                        return Ok(zed::Command {
-                            command: path,
-                            args: vec![],
-                            env: vec![],
-                        });
-                    }
-                },
-                (_, None) => {
-                    return Ok(zed::Command {
-                        command: path,
-                        args: vec![],
-                        env: vec![],
-                    });
-                }
-            }
+        if has_local {
+            zed::set_language_server_installation_status(
+                language_server_id,
+                &zed::LanguageServerInstallationStatus::None,
+            );
+            return Ok(zed::Command {
+                command: local_binary,
+                args: vec![],
+                env: vec![],
+            });
         }
 
-        // no local binary found — download or error
+        zed::set_language_server_installation_status(
+            language_server_id,
+            &zed::LanguageServerInstallationStatus::Downloading,
+        );
+
         let release = zed::latest_github_release(
             REPO,
             zed::GithubReleaseOptions {
