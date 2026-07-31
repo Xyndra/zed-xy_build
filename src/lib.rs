@@ -55,7 +55,7 @@ impl zed::Extension for XyBuildExtension {
         })?;
 
         let version = release.version.trim_start_matches('v');
-        download_lsp(language_server_id, os, arch, ext, version)
+        download_lsp(language_server_id, os, arch, ext, version, &release)
     }
 }
 
@@ -65,6 +65,7 @@ fn download_lsp(
     arch: zed::Architecture,
     ext: &str,
     version: &str,
+    release: &zed::GithubRelease,
 ) -> zed::Result<zed::Command> {
     let asset_suffix = match (os, arch) {
         (zed::Os::Linux, zed::Architecture::X8664) => "x86_64-linux",
@@ -97,21 +98,6 @@ fn download_lsp(
         language_server_id,
         &zed::LanguageServerInstallationStatus::Downloading,
     );
-
-    let release = zed::latest_github_release(
-        REPO,
-        zed::GithubReleaseOptions {
-            require_assets: true,
-            pre_release: false,
-        },
-    )
-    .map_err(|e| {
-        format!(
-            "failed to fetch latest release ({e}). \
-             build xy-build-lsp from source: `cargo build -p xy-build-lsp` \
-             and place it on $PATH, or set $XY_BUILD_LSP_PATH"
-        )
-    })?;
 
     let asset = release
         .assets
